@@ -21,4 +21,4 @@ Running N2N-TAPS-1 (JL) is followed as:
 
 Running N2N-TAPS-1 (URL) is followed as:
 
-    python contrastive_learning_main.py --dataset Cora
+    python unsupervised_representation_learning_main.py --dataset Cora
