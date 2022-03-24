@@ -7,6 +7,15 @@ The key towards learning informative node representations in graphs lies in how 
 # Citation
 If you are use this code for you research, please cite our paper.
 
+    @misc{dong2022node,
+          title={Node Representation Learning in Graph via Node-to-Neighbourhood Mutual Information Maximization}, 
+          author={Wei Dong and Junsheng Wu and Yi Luo and Zongyuan Ge and Peng Wang},
+          year={2022},
+          eprint={2203.12265},
+          archivePrefix={arXiv},
+          primaryClass={cs.LG}
+    }
+
 # Dependencies
 * tensorflow == 2.6.0
 * numpy == 1.21.2
