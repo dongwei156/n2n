@@ -55,7 +55,7 @@ If you are use this code for you research, please cite our paper.
 * heapq == 3.10.2
 * scipy == 1.7.1
 
-# Run
+# Run on Cora
 Running NF-N2N (W) is followed as:
 
     python negative_free_unsupervised_representation_learning_main.py --dataset Cora --contrast-loss distance --batch-normalization Schur_ZCA
@@ -67,3 +67,16 @@ Running NF-N2N (WA) is followed as:
 Running NF-N2N (WC) is followed as:
 
     python negative_free_unsupervised_representation_learning_main.py --dataset Cora --contrast-loss cross-correlation --batch-normalization BN
+    
+# Run on Feather-Lastfm (without node features)
+Running NF-N2N (W) is followed as:
+
+    python large_negative_free_unsupervised_representation_learning_main.py --dataset Feather-Lastfm --contrast-loss distance --batch-normalization Schur_ZCA
+
+Running NF-N2N (WA) is followed as:
+
+    python large_negative_free_unsupervised_representation_learning_main.py --dataset Feather-Lastfm --contrast-loss distance+auto-correlation --batch-normalization BN
+    
+Running NF-N2N (WC) is followed as:
+
+    python large_negative_free_unsupervised_representation_learning_main.py --dataset Feather-Lastfm --contrast-loss cross-correlation --batch-normalization BN
