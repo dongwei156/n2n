@@ -600,7 +600,7 @@ parser.add_argument(
         '-zi',
         '--ZCA-iteration',
         type = int,
-        default = 6)
+        default = 8)
 
 parser.add_argument(
         '-zt',
