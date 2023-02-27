@@ -594,7 +594,7 @@ parser.add_argument(
         '-bn', 
         '--batch-normalization',
         type = str,
-        default = 'None') # None, BN, ZCA, Schur_ZCA
+        default = 'Schur_ZCA') # None, BN, ZCA, Schur_ZCA
 
 parser.add_argument(
         '-zi',
