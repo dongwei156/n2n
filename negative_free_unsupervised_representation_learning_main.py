@@ -268,7 +268,7 @@ def unsupervised_learning(features,
                             
                         loss_value += tl.loss_dot_product_v2(y_pred = y_pred, true_pred = true_pred, temperature = temperature)
                         
-                    elif('signal distance' == contrast_loss):
+                    elif('signal_distance' == contrast_loss):
                             
                         loss_value += tl.loss_dot_product_v2(y_pred = y_pred, true_pred = true_pred, axis = 0, temperature = temperature)
                         
@@ -276,21 +276,21 @@ def unsupervised_learning(features,
                         
                         loss_value += tl.loss_dot_product_v3(y_pred = y_pred, true_pred = true_pred, temperature = temperature)
                         
-                    elif('signal contrastive' == contrast_loss):
+                    elif('signal_contrastive' == contrast_loss):
                         
                         loss_value += tl.loss_dot_product_v3(y_pred = y_pred, true_pred = true_pred, axis = 0, temperature = temperature)
                         
-                    elif('distance + auto-correlation' == contrast_loss):
+                    elif('distance+auto-correlation' == contrast_loss):
                         
                         loss_value += (alpha * tl.loss_dot_product_v2(y_pred = y_pred, true_pred = true_pred, temperature = temperature) + \
                                        beta * tl.auto_correlation(y_pred = y_pred, lam = lam) + tl.auto_correlation(y_pred = true_pred, lam = lam))
                             
-                    elif('signal distance + auto-correlation' == contrast_loss):
+                    elif('signal_distance+auto-correlation' == contrast_loss):
                         
                         loss_value += (alpha * tl.loss_dot_product_v2(y_pred = y_pred, true_pred = true_pred, axis = 0, temperature = temperature) + \
                                        beta * tl.auto_correlation(y_pred = y_pred, lam = lam) + tl.auto_correlation(y_pred = true_pred, lam = lam))
                             
-                    elif('cross-correlation + auto-correlation' == contrast_loss):
+                    elif('cross-correlation+auto-correlation' == contrast_loss):
                         
                         loss_value += (alpha * tl.cross_correlation(y_pred = y_pred, true_pred = true_pred, lam = lam) + \
                                        beta * tl.auto_correlation(y_pred = y_pred, lam = lam) + tl.auto_correlation(y_pred = true_pred, lam = lam))
@@ -415,12 +415,12 @@ parser.add_argument(
 
 '''
     distance (ZCA)
-    signal distance (ZCA)
+    signal_distance (ZCA)
     contrastive (Info-NCE)
-    signal contrastive (Info-NCE)
-    distance + auto-correlation
-    signal distance + auto-correlation
-    cross-correlation + auto-correlation
+    signal_contrastive (Info-NCE)
+    distance+auto-correlation
+    signal distance+auto-correlation
+    cross-correlation+auto-correlation
     cross-correlation (Barlow Tiwns)
 '''
 
@@ -618,7 +618,6 @@ while(True):
         
         sys.exit(0)
 
-max_test_f1_list = []
 for _ in range(args.num_run):
 
     downstream_model = tf.keras.Sequential(
@@ -630,16 +629,12 @@ for _ in range(args.num_run):
         ]
     )
     
-    max_test_f1 = downstream_learning(features = representations, 
-                                      labels = labels,
-                                      train_set = train_set,
-                                      val_set = val_set,
-                                      test_set = test_set,
-                                      model = downstream_model,
-                                      num_epochs = args.downstream_num_epochs,
-                                      learning_rate = args.downstream_learning_rate,
-                                      early_stopping = args.early_stopping)
-    
-    max_test_f1_list.append(max_test_f1)
-   
-print("result: %.2f%% ± %.2f%%" % (np.mean(max_test_f1_list) * 100, np.std(max_test_f1_list) * np.power(args.num_run, -1/2) * 100))
+    downstream_learning(features = representations, 
+                        labels = labels,
+                        train_set = train_set,
+                        val_set = val_set,
+                        test_set = test_set,
+                        model = downstream_model,
+                        num_epochs = args.downstream_num_epochs,
+                        learning_rate = args.downstream_learning_rate,
+                        early_stopping = args.early_stopping)
