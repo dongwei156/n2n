@@ -15,6 +15,7 @@ import random as rm
 import scipy.sparse as sp
 from scipy.sparse import coo_matrix
 import networkx as nx
+import keras.backend as K
 
 
 """
@@ -85,8 +86,6 @@ def get_L_M(adj):
 
 def loss_dot_product(y_pred, true_pred, size_splits = None, temperature = 1, bias = 1e-8):
     
-    #y_pred = y_pred / (tf.norm(y_pred, ord = 2, axis = 0, keepdims = True) + bias)
-    
     numerator = tf.exp(tf.reduce_sum(y_pred * true_pred, axis = 1, keepdims = True) / temperature)
     
     if(None != size_splits):
@@ -110,6 +109,73 @@ def loss_dot_product(y_pred, true_pred, size_splits = None, temperature = 1, bia
         denominator = tf.reduce_sum(tf.exp(E_1 / temperature), axis = 1, keepdims = True)
     
     return -tf.reduce_mean(tf.math.log(numerator / (denominator + bias) + bias))
+
+def loss_dot_product_v2(y_pred, true_pred, axis = 1, temperature = 1, bias = 1e-8):
+    
+    loss = 2 - 2 * tf.reduce_sum(y_pred * true_pred, axis = axis, keepdims = True) \
+        / (temperature * tf.norm(y_pred, axis = axis, keepdims = True) * tf.norm(true_pred, axis = axis, keepdims = True) + bias)
+    
+    return tf.reduce_mean(loss)
+
+
+def loss_dot_product_v3(y_pred, true_pred, axis = 1, temperature = 1, bias = 1e-8):
+    
+    numerator = tf.exp(tf.reduce_sum(y_pred * true_pred, axis = axis, keepdims = True) / temperature)
+    
+    if(0 == axis):
+    
+        E_1 = tf.matmul(tf.transpose(y_pred, perm = (1, 0)), y_pred)
+        
+    else:
+        
+        E_1 = tf.matmul(y_pred, tf.transpose(y_pred, perm = (1, 0)))
+    
+    denominator = tf.reduce_sum(tf.exp(E_1 / temperature), axis = axis, keepdims = True)
+    
+    return -tf.reduce_mean(tf.math.log(numerator / (denominator + bias) + bias))
+
+def auto_correlation(y_pred, lam = 0.005, bias = 1e-8):
+    
+    D = y_pred.shape[-1]
+    N = y_pred.shape[0]
+    
+    y_pred_mean = tf.reduce_mean(y_pred, axis = 0, keepdims = True)
+    
+    y_pred = y_pred - y_pred_mean
+    
+    C = tf.matmul(tf.transpose(y_pred, perm=[1, 0]), y_pred) / N
+    
+    I = tf.eye(D)
+    
+    C_diff = tf.pow(C - I, 2)
+    
+    part_diag = tf.linalg.diag_part(C_diff)
+    
+    return tf.reduce_sum(part_diag) + tf.reduce_sum(lam * (C_diff - tf.linalg.diag(part_diag)))
+
+
+def cross_correlation(y_pred, true_pred, lam = 0.005, bias = 1e-8):
+    
+    D = y_pred.shape[-1]
+    N = y_pred.shape[0]
+    
+    y_pred_mean = tf.reduce_mean(y_pred, axis = 0, keepdims = True)
+    
+    y_pred = y_pred - y_pred_mean
+    
+    true_pred_mean = tf.reduce_mean(true_pred, axis = 0, keepdims = True)
+    
+    true_pred = true_pred - true_pred_mean
+
+    C = tf.matmul(tf.transpose(y_pred, perm=[1, 0]), true_pred) / N
+    
+    I = tf.eye(D)
+    
+    C_diff = tf.pow(C - I, 2)
+    
+    part_diag = tf.linalg.diag_part(C_diff)
+    
+    return tf.reduce_sum(part_diag) + tf.reduce_sum(lam * (C_diff - tf.linalg.diag(part_diag)))
 
 
 def get_mutual_information(A, bias = 1e-10):
@@ -144,7 +210,7 @@ def get_mutual_information(A, bias = 1e-10):
         
         A_i = np.squeeze(A[i].toarray(), 0)
         
-        for j in np.squeeze(np.argwhere(A_i > 0), 1): #range(N): #
+        for j in np.squeeze(np.argwhere(A_i > 0), 1): 
         
             if(i == j):
                 
@@ -323,6 +389,130 @@ def mutual_info(A, K):
 
     return sub_graph_list
     
+def Newton_ZCA_for_features(X, T = 5, temp = 10, epsilon = 1e-8):
+    
+    d = X.shape[-1]
+    m = X.shape[0]
+    
+    mean = tf.reduce_mean(X, axis = 0, keepdims = True)
+    
+    X_mean = X - mean
+    
+    X_mean_T = tf.transpose(X_mean, perm = [1, 0])
+    
+    C = tf.matmul(X_mean_T, X_mean) / m + epsilon * tf.eye(d)
+    
+    part_diag = tf.linalg.diag_part(C)
+    
+    tr = tf.reduce_sum(part_diag)
+    
+    C = C / tr
+    
+    P = tf.eye(d)
+    
+    for _ in range(T):
+        
+        P = (3 * P - tf.matmul(P, tf.matmul(P, tf.matmul(P, C)))) / 2
+        
+    C = P / (temp * tf.sqrt(tr))
+    
+    return tf.matmul(X_mean, C), mean, C
 
+def Schur_Newton_ZCA_for_features(X, T = 5, temp = 10, epsilon = 1e-8):
+    
+    d = X.shape[-1]
+    m = X.shape[0]
+    I = tf.eye(d)
+    
+    mean = tf.reduce_mean(X, axis = 0, keepdims = True)
+    
+    X_mean = X - mean
+    
+    X_mean_T = tf.transpose(X_mean, perm = [1, 0])
+    
+    C = tf.matmul(X_mean_T, X_mean) / m + epsilon * I
+    
+    part_diag = tf.linalg.diag_part(C)
+    
+    tr = tf.reduce_sum(part_diag)
+    
+    C = C / tr
+    
+    P = tf.eye(d)
+    
+    for _ in range(T):
+        
+        C_T = (3 * I - C) / 2
+        
+        P = tf.matmul(P, C_T)
+        
+        C = tf.matmul(C_T, tf.matmul(C_T, C))
+        
+    C = P / (temp * tf.sqrt(tr))
+    
+    return tf.matmul(X_mean, C), mean, C
+
+def Newton_ZCA_for_samples(X, T = 5, temp = 10, epsilon = 1e-8):
+    
+    d = X.shape[-1]
+    m = X.shape[0]
+    
+    mean = tf.reduce_mean(X, axis = 1, keepdims = True)
+    
+    X_mean = X - mean
+    
+    X_mean_T = tf.transpose(X_mean, perm = [1, 0])
+    
+    C = tf.matmul(X_mean, X_mean_T) / d + epsilon * tf.eye(m)
+    
+    part_diag = tf.linalg.diag_part(C)
+    
+    tr = tf.reduce_sum(part_diag)
+    
+    C = C / tr
+    
+    P = tf.eye(m)
+    
+    for _ in range(T):
+        
+        P = (3 * P - tf.matmul(P, tf.matmul(P, tf.matmul(P, C)))) / 2
+        
+    C = P / (temp * tf.sqrt(tr))
+    
+    return tf.matmul(C, X_mean), mean, C
+
+def Schur_Newton_ZCA_for_samples(X, T = 5, temp = 10, epsilon = 1e-8):
+    
+    d = X.shape[-1]
+    m = X.shape[0]
+    I = tf.eye(m)
+    
+    mean = tf.reduce_mean(X, axis = 1, keepdims = True)
+    
+    X_mean = X - mean
+    
+    X_mean_T = tf.transpose(X_mean, perm = [1, 0])
+    
+    C = tf.matmul(X_mean, X_mean_T) / d + epsilon * I
+    
+    part_diag = tf.linalg.diag_part(C)
+    
+    tr = tf.reduce_sum(part_diag)
+    
+    C = C / tr
+    
+    P = tf.eye(m)
+    
+    for _ in range(T):
+        
+        C_T = (3 * I - C) / 2
+        
+        P = tf.matmul(P, C_T)
+        
+        C = tf.matmul(C_T, tf.matmul(C_T, C))
+        
+    C = P / (temp * tf.sqrt(tr))
+    
+    return tf.matmul(C, X_mean), mean, C
 
 
