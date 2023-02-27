@@ -515,4 +515,103 @@ def Schur_Newton_ZCA_for_samples(X, T = 5, temp = 10, epsilon = 1e-8):
     
     return tf.matmul(C, X_mean), mean, C
 
+def centering(K):
+    
+    n = K.shape[0]
+    unit = tf.ones([n, n])
+    I = tf.eye(n)
+    H = I - unit / n
+    
+    return tf.matmul(tf.matmul(H, K), H)
 
+def sp_dot_sp_T(sp_Y):
+    
+    sp_Y = sp_Y.tocoo()
+    
+    sp_Y_T = coo_matrix((sp_Y.data, (sp_Y.col, sp_Y.row)), shape = (sp_Y.shape[1], sp_Y.shape[0]))
+    
+    sp_Y = sp_Y.tocsr()
+    sp_Y_T = sp_Y_T.tocsr()
+    
+    L_Y = sp_Y.dot(sp_Y_T).todense()
+    
+    return L_Y
+
+def linear_HSIC_d_s(X, sp_Y):
+    
+    L_X = tf.matmul(X, tf.transpose(X, perm=[1, 0]))
+    
+    L_Y = sp_dot_sp_T(sp_Y)
+    
+    L_Y = tf.convert_to_tensor(L_Y, dtype = tf.float32)
+    
+    return tf.reduce_sum(centering(L_X) * centering(L_Y))
+
+def linear_HSIC_s_s(sp_X, sp_Y):
+    
+    L_X = sp_dot_sp_T(sp_X)
+    
+    L_X = tf.convert_to_tensor(L_X, dtype = tf.float32)
+    
+    L_Y = sp_dot_sp_T(sp_Y)
+    
+    L_Y = tf.convert_to_tensor(L_Y, dtype = tf.float32)
+    
+    return tf.reduce_sum(centering(L_X) * centering(L_Y))
+
+def linear_HSIC(X, Y):
+    
+    L_X = tf.matmul(X, tf.transpose(X, perm=[1, 0]))
+    L_Y = tf.matmul(Y, tf.transpose(Y, perm=[1, 0]))
+    
+    return tf.reduce_sum(centering(L_X) * centering(L_Y))
+    #return tf.reduce_sum(L_X * L_Y)
+
+def linear_CKA_d_s(X, sp_Y):
+    
+    hsic = linear_HSIC_d_s(X, sp_Y)
+    var1 = tf.math.sqrt(linear_HSIC(X, X))
+    var2 = tf.math.sqrt(linear_HSIC_s_s(sp_Y, sp_Y))
+    
+    return hsic / (var1 * var2)
+
+def linear_CKA(y_pred, true_pred):
+    
+    hsic = linear_HSIC(y_pred, true_pred)
+    var1 = tf.math.sqrt(linear_HSIC(y_pred, y_pred))
+    var2 = tf.math.sqrt(linear_HSIC(true_pred, true_pred))
+    
+    return hsic / (var1 * var2)
+
+def rbf(X, sigma = None):
+    
+    GX = tf.matmul(X, tf.transpose(X, perm=[1, 0]))
+    GX = tf.linalg.diag_part(GX) - GX
+    KX = GX + tf.transpose(GX, perm=[1, 0])
+    
+    if sigma is None:
+        mean = tf.reduce_mean(KX[KX != 0])
+        sigma = tf.math.sqrt(mean)
+    
+    KX *= - 0.5 / (sigma * sigma)
+    KX = tf.math.exp(KX)
+    
+    return KX
+
+def kernel_HSIC(X, Y, sigma):
+    
+    return tf.reduce_sum(centering(rbf(X, sigma)) * centering(rbf(Y, sigma)))
+
+def kernel_CKA(X, Y, sigma = None):
+    
+    hsic = kernel_HSIC(X, Y, sigma)
+    var1 = tf.math.sqrt(kernel_HSIC(X, X, sigma))
+    var2 = tf.math.sqrt(kernel_HSIC(Y, Y, sigma))
+
+    return hsic / (var1 * var2)
+
+def KL_mean_var(z_mean, z_log_var, alpha = 0.5):
+    
+    kl_loss = - alpha * tf.keras.backend.mean(1 + z_log_var - tf.keras.backend.square(z_mean) - tf.keras.backend.exp(z_log_var))
+    
+    return kl_loss
