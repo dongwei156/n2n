@@ -18,7 +18,7 @@ import math
 from sklearn.metrics import f1_score
 from sklearn import preprocessing
 
-import tools_v1 as tl
+import tools as tl
 
 print("TensorFlow version: {}".format(tf.__version__))
 print("Eager execution: {}".format(tf.executing_eagerly()))
